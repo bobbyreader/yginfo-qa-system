@@ -19,7 +19,7 @@ class IntentService:
         settings = get_settings()
         self.llm = ChatOpenAI(
             api_key=settings.openai_api_key,
-            model="gpt-4o-mini",
+            model=settings.openai_model,
         )
 
     async def classify(self, question: str) -> str:

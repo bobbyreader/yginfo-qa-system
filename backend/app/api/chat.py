@@ -79,7 +79,7 @@ async def chat(
             turn_count=1,
         )
         db.add(conv)
-    await db.flush()
+    await db.commit()
 
     # 6. 生成推荐问题
     recommendations = await _generate_recommendations(request.message, chunks)
