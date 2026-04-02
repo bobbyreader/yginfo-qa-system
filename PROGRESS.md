@@ -1,48 +1,63 @@
-# YG智能知识库问答系统 - 部署进度
+# YG智能知识库问答系统 - 工作进度
 
-**更新时间**: 2026-04-02 15:56
+**最后更新**: 2026-04-02 17:30
 
-## 项目状态: 部署成功 ✅
+## 项目状态: 部署中（数据库连接卡住）🔄
 
-代码已完成并成功部署在 Render。
+## 已完成的修复
 
-## 访问信息
+### 代码层面 ✅
+1. ✅ `requirements.txt` - 添加 `rank-bm25==0.2.2`
+2. ✅ `requirements.txt` - 添加 `python-multipart==0.0.12`
+3. ✅ `requirements.txt` - 添加 `pypdf==5.1.0`
+4. ✅ `requirements.txt` - 添加 `python-docx==1.1.2`
+5. ✅ `database.py` - URL 自动转换 `postgresql://` → `postgresql+asyncpg://`
+6. ✅ `intent.py` - LLM 调用加 try-except + hasattr 兼容中转API
+7. ✅ `generation.py` - LLM 调用加 try-except 异常处理
+8. ✅ `chat.py` - _generate_recommendations 加异常处理
+9. ✅ `embedding.py` - 改用 httpx 直接调用中转API（不用SDK）
+10. ✅ `retrieval.py` - hybrid_search 加降级逻辑
 
-- **API 地址**: https://yginfo-qa-system-1.onrender.com
-- **Swagger 文档**: https://yginfo-qa-system-1.onrender.com/docs
-- **健康检查**: https://yginfo-qa-system-1.onrender.com/health
+### 部署层面 ⚠️
+- ✅ Site 访问正常：https://yginfo-qa-system-1.onrender.com
+- ✅ /health 200
+- ✅ /docs 200
+- ❌ /api/chat/message 500 — 数据库连接问题
 
-## 部署验证
+## 当前卡点：Supabase 数据库连接
 
-```bash
-curl https://yginfo-qa-system-1.onrender.com/health
-# → {"status":"ok"}
+### 问题演进
+1. 最初：DNS 解析失败（主机名错误）
+2. 然后：Tenant or user not found（Pooler 地址，密码或用户名问题）
+3. 最后：Network unreachable（直接连接 5432 被 Render 网络封锁）
+
+### 根因
+- Render 免费版无法直连 Supabase 5432 端口（被封锁）
+- 必须使用 Supabase Pooler（端口 6543）
+- Pooler 连接报错 "Tenant or user not found" = 连接串格式问题
+
+### 下一步操作
+1. 登录 Supabase Dashboard → Settings → Database
+2. 找到 **Connection Pooling** 部分
+3. 复制 **pooler.supabase.com** 的连接串（不是 direct）
+4. 密码中的 `@` 需要 URL 编码为 `%40`
+5. 在 Render 上更新 `DATABASE_URL` 环境变量
+6. 重新 Deploy
+
+### 预期正确的连接串格式
+```
+postgresql://postgres:002063%40YGSOFT@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
 ```
 
-## 部署架构
+注意：
+- 端口是 **6543**（不是 5432）
+- 密码 `002063@YGSOFT` → `002063%40YGSOFT`
 
-```
-用户请求 → Render (FastAPI)
-              ├── Supabase (PostgreSQL) - 存储文档、对话
-              ├── Pinecone (向量数据库) - 存储 embedding
-              └── 中转 API (MiniMax) - LLM 生成
-```
+## Git 提交记录
+- `f441175` - fix: add missing rank-bm25 dependency
+- `405f688` - fix: add missing dependencies - python-multipart, pypdf, python-docx
+- `4554aa1` - fix: handle non-standard LLM responses from proxy APIs
+- `2e0a87e` - fix: replace OpenAI SDK embedding with direct httpx calls
 
-## 已修复的部署问题
-
-1. ✅ `database.py` - URL 自动转换 `postgresql://` → `postgresql+asyncpg://`
-2. ✅ `requirements.txt` - 添加 `rank-bm25==0.2.2`
-3. ✅ `requirements.txt` - 添加 `python-multipart==0.0.12`
-4. ✅ `requirements.txt` - 添加 `pypdf==5.1.0`
-5. ✅ `requirements.txt` - 添加 `python-docx==1.1.2`
-
-## 代码仓库
-https://github.com/bobbyreader/yginfo-qa-system
-
-## 关键文件
-- `backend/app/main.py` - FastAPI 入口
-- `backend/app/core/config.py` - 配置（支持 openai_base_url 中转）
-- `backend/app/core/database.py` - 数据库连接
-- `backend/app/services/` - 核心服务
-- `render.yaml` - Render 部署配置
-- `requirements.txt` - Python 依赖
+## 部署地址
+https://yginfo-qa-system-1.onrender.com/docs
