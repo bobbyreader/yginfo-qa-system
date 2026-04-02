@@ -22,73 +22,81 @@ async def chat(
     request: ChatRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    # 1. 意图识别
-    intent_service = IntentService()
-    intent = await intent_service.classify(request.message)
+    try:
+        # 1. 意图识别
+        intent_service = IntentService()
+        intent = await intent_service.classify(request.message)
 
-    if intent == "invalid":
-        return {"reply": "抱歉，我没有理解您的问题，请重新描述。", "recommendations": []}
+        if intent == "invalid":
+            return {"reply": "抱歉，我没有理解您的问题，请重新描述。", "recommendations": []}
 
-    if intent == "chitchat":
-        return {
-            "reply": "您好！我是智能客服，请问有什么可以帮您？",
-            "recommendations": ["查询常见问题", "联系人工客服"]
-        }
+        if intent == "chitchat":
+            return {
+                "reply": "您好！我是智能客服，请问有什么可以帮您？",
+                "recommendations": ["查询常见问题", "联系人工客服"]
+            }
 
-    # 2. 知识库检索
-    retrieval_service = RetrievalService()
-    chunks = await retrieval_service.hybrid_search(
-        request.message, request.tenant_id
-    )
-
-    # 3. 获取对话历史
-    conv = await db.get(Conversation, request.session_id)
-    history = conv.messages if conv else []
-
-    # 4. LLM生成
-    generation_service = GenerationService()
-    reply = await generation_service.generate(
-        request.message, chunks, history
-    )
-
-    # 5. 保存对话
-    if conv:
-        conv.messages.append({
-            "role": "user",
-            "content": request.message,
-            "timestamp": "ISO8601",
-        })
-        conv.messages.append({
-            "role": "assistant",
-            "content": reply,
-            "timestamp": "ISO8601",
-        })
-        conv.turn_count += 1
-        conv.last_message_at = func.now()
-    else:
-        conv = Conversation(
-            id=request.session_id,
-            tenant_id=request.tenant_id,
-            channel=request.channel,
-            user_id=request.user_id,
-            session_id=request.session_id,
-            messages=[
-                {"role": "user", "content": request.message, "timestamp": "ISO8601"},
-                {"role": "assistant", "content": reply, "timestamp": "ISO8601"},
-            ],
-            turn_count=1,
+        # 2. 知识库检索
+        retrieval_service = RetrievalService()
+        chunks = await retrieval_service.hybrid_search(
+            request.message, request.tenant_id
         )
-        db.add(conv)
-    await db.commit()
 
-    # 6. 生成推荐问题
-    recommendations = await _generate_recommendations(request.message, chunks)
+        # 3. 获取对话历史
+        conv = await db.get(Conversation, request.session_id)
+        history = (conv.messages or []) if conv else []
 
-    return {
-        "reply": reply,
-        "recommendations": recommendations,
-        "session_id": request.session_id,
-    }
+        # 4. LLM生成
+        generation_service = GenerationService()
+        reply = await generation_service.generate(
+            request.message, chunks, history
+        )
+
+        # 5. 保存对话
+        if conv:
+            if conv.messages is None:
+                conv.messages = []
+            conv.messages.append({
+                "role": "user",
+                "content": request.message,
+                "timestamp": "2026-04-02T00:00:00Z",
+            })
+            conv.messages.append({
+                "role": "assistant",
+                "content": reply,
+                "timestamp": "2026-04-02T00:00:00Z",
+            })
+            conv.turn_count = (conv.turn_count or 0) + 1
+            conv.last_message_at = func.now()
+        else:
+            conv = Conversation(
+                id=request.session_id,
+                tenant_id=request.tenant_id,
+                channel=request.channel,
+                user_id=request.user_id,
+                session_id=request.session_id,
+                messages=[
+                    {"role": "user", "content": request.message, "timestamp": "2026-04-02T00:00:00Z"},
+                    {"role": "assistant", "content": reply, "timestamp": "2026-04-02T00:00:00Z"},
+                ],
+                turn_count=1,
+            )
+            db.add(conv)
+        await db.commit()
+
+        # 6. 生成推荐问题
+        recommendations = await _generate_recommendations(request.message, chunks)
+
+        return {
+            "reply": reply,
+            "recommendations": recommendations,
+            "session_id": request.session_id,
+        }
+    except Exception as e:
+        await db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 async def _generate_recommendations(question: str, chunks: list[dict]) -> list[str]:
     """基于当前问题和检索结果生成推荐问题"""
@@ -97,7 +105,7 @@ async def _generate_recommendations(question: str, chunks: list[dict]) -> list[s
     if not chunks:
         return ["常见问题有哪些？", "如何联系人工客服？"]
 
-    context = "\n".join([f"- {c['text'][:100]}" for c in chunks[:3]])
+    context = "\n".join([f"- {c.get('text', '')[:100]}" for c in chunks[:3]])
 
     recommendation_prompt = f"""基于以下知识库内容，生成2-3个用户可能会问的相关问题。
 
