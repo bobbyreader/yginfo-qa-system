@@ -13,14 +13,19 @@ engine_kwargs = {
     "pool_pre_ping": True,
 }
 
+# 数据库URL转换：postgresql:// → postgresql+asyncpg://
+db_url = settings.database_url
+if db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 # SQLite 不支持 pool_size 和 max_overflow
-if not settings.database_url.startswith("sqlite"):
+if not db_url.startswith("sqlite"):
     engine_kwargs.update({
         "pool_size": 10,
         "max_overflow": 20,
     })
 
-async_engine = create_async_engine(settings.database_url, **engine_kwargs)
+async_engine = create_async_engine(db_url, **engine_kwargs)
 
 # 异步会话工厂
 AsyncSessionLocal = async_sessionmaker(
