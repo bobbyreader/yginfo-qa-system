@@ -1,7 +1,12 @@
+import os
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# 获取backend目录的绝对路径
+BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -15,7 +20,7 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./yg_knowledge.db",
+        default=f"sqlite+aiosqlite:///{BACKEND_DIR / 'yg_knowledge.db'}",
         description="数据库连接URL",
     )
 
