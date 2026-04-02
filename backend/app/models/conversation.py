@@ -15,6 +15,7 @@ class Conversation(Base):
     messages = Column(JSON, default=[])  # [{"role": "user|assistant", "content": "...", "timestamp": "..."}]
 
     turn_count = Column(Integer, default=0)
-    last_message_at = Column(DateTime(timezone=True), server_default=func.now())
+    last_message_at = Column(DateTime(timezone=True))
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
