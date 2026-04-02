@@ -1,5 +1,5 @@
 from app.core.config import get_settings
-from langchain_openai import ChatOpenAI
+import httpx
 
 class IntentService:
     """意图识别：判断是知识库问答还是闲聊"""
@@ -17,24 +17,33 @@ class IntentService:
 
     def __init__(self):
         settings = get_settings()
-        self.llm = ChatOpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
-            model=settings.openai_model,
-        )
+        self.api_key = settings.openai_api_key
+        self.base_url = settings.openai_base_url.rstrip("/")
+        self.model = settings.openai_model
 
     async def classify(self, question: str) -> str:
         """识别意图"""
         prompt = self.INTENT_PROMPT.format(question=question)
         try:
-            response = await self.llm.ainvoke([{"role": "user", "content": prompt}])
-            # 兼容中转API返回的字符串或标准AIMessage对象
-            intent = response.content if hasattr(response, 'content') else str(response)
-            intent = intent.strip().lower()
-        except Exception as e:
-            # 中转API异常时默认走知识库检索
-            import traceback
-            print(f"Intent classification failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"{self.base_url}/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self.model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 50,
+                    },
+                )
+                data = resp.json()
+                if "error" in data:
+                    return "knowledge_qa"
+                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                intent = content.strip().lower()
+        except Exception:
             return "knowledge_qa"
 
         if "knowledge_qa" in intent:

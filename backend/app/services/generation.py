@@ -1,5 +1,6 @@
 from langchain_openai import ChatOpenAI
 from app.core.config import get_settings
+import httpx
 
 class GenerationService:
     """LLM生成服务"""
@@ -24,12 +25,9 @@ class GenerationService:
 
     def __init__(self):
         settings = get_settings()
-        self.llm = ChatOpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
-            model=settings.openai_model,
-            max_tokens=1000,
-        )
+        self.api_key = settings.openai_api_key
+        self.base_url = settings.openai_base_url.rstrip("/")
+        self.model = settings.openai_model
 
     async def generate(
         self,
@@ -39,13 +37,13 @@ class GenerationService:
     ) -> str:
         """生成回答"""
         context = "\n\n".join([
-            f"[{i+1}] {chunk['text']}"
+            f"[{i+1}] {chunk.get('text', '')}"
             for i, chunk in enumerate(context_chunks)
         ]) if context_chunks else "（知识库中未找到相关信息）"
 
         history = "\n".join([
-            f"{'用户' if msg['role'] == 'user' else '助手'}: {msg['content']}"
-            for msg in conversation_history[-10:]
+            f"{'用户' if msg.get('role') == 'user' else '助手'}: {msg.get('content', '')}"
+            for msg in (conversation_history[-10:] if conversation_history else [])
         ]) if conversation_history else "（首次对话）"
 
         prompt = self.SYSTEM_PROMPT.format(
@@ -55,10 +53,25 @@ class GenerationService:
         )
 
         try:
-            response = await self.llm.ainvoke([{"role": "user", "content": prompt}])
-            # 兼容中转API返回的字符串或标准AIMessage对象
-            return response.content if hasattr(response, 'content') else str(response)
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(
+                    f"{self.base_url}/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self.model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": 1000,
+                    },
+                )
+                data = resp.json()
+                if "error" in data:
+                    return f"抱歉，服务暂时不可用。错误: {data['error'].get('message', 'unknown')}"
+                choices = data.get("choices", [{}])
+                return choices[0].get("message", {}).get("content", "抱歉，未能获取回答")
         except Exception as e:
             import traceback
             error_msg = f"LLM调用失败: {type(e).__name__}: {e}\n{traceback.format_exc()}"
-            return f"抱歉，服务暂时不可用。错误信息: {error_msg[:200]}"
+            return f"抱歉，服务暂时不可用。错误信息: {error_msg[:300]}"
