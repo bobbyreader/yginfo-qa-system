@@ -6,7 +6,6 @@ from app.core.database import get_db
 from app.models.conversation import Conversation
 from app.services.retrieval import RetrievalService
 from app.services.generation import GenerationService
-from app.services.intent import IntentService
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -17,42 +16,30 @@ class ChatRequest(BaseModel):
     session_id: str
     message: str
 
+
 @router.post("/message")
 async def chat(
     request: ChatRequest,
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        # 1. 意图识别
-        intent_service = IntentService()
-        intent = await intent_service.classify(request.message)
-
-        if intent == "invalid":
-            return {"reply": "抱歉，我没有理解您的问题，请重新描述。", "recommendations": []}
-
-        if intent == "chitchat":
-            return {
-                "reply": "您好！我是智能客服，请问有什么可以帮您？",
-                "recommendations": ["查询常见问题", "联系人工客服"]
-            }
-
-        # 2. 知识库检索
+        # 1. 知识库检索（跳过意图识别，直接走知识库）
         retrieval_service = RetrievalService()
         chunks = await retrieval_service.hybrid_search(
             request.message, request.tenant_id
         )
 
-        # 3. 获取对话历史
+        # 2. 获取对话历史
         conv = await db.get(Conversation, request.session_id)
         history = (conv.messages or []) if conv else []
 
-        # 4. LLM生成
+        # 3. LLM生成
         generation_service = GenerationService()
         reply = await generation_service.generate(
             request.message, chunks, history
         )
 
-        # 5. 保存对话
+        # 4. 保存对话
         if conv:
             if conv.messages is None:
                 conv.messages = []
@@ -84,7 +71,7 @@ async def chat(
             db.add(conv)
         await db.commit()
 
-        # 6. 生成推荐问题
+        # 5. 生成推荐问题
         recommendations = await _generate_recommendations(request.message, chunks)
 
         return {
@@ -98,10 +85,9 @@ async def chat(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 async def _generate_recommendations(question: str, chunks: list[dict]) -> list[str]:
     """基于当前问题和检索结果生成推荐问题"""
-    from app.services.generation import GenerationService
-
     if not chunks:
         return ["常见问题有哪些？", "如何联系人工客服？"]
 
@@ -121,16 +107,35 @@ async def _generate_recommendations(question: str, chunks: list[dict]) -> list[s
 
 直接输出问题列表，每行一条，不要编号。"""
 
-    generation_service = GenerationService()
     try:
-        response = await generation_service.llm.ainvoke([
-            {"role": "user", "content": recommendation_prompt}
-        ])
-        content = response.content if hasattr(response, 'content') else str(response)
+        from app.core.config import get_settings
+        import httpx
+        settings = get_settings()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{settings.openai_base_url.rstrip('/')}/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.openai_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.openai_model,
+                    "messages": [{"role": "user", "content": recommendation_prompt}],
+                    "max_tokens": 200,
+                },
+            )
+            data = resp.json()
+            if "error" in data:
+                return ["常见问题有哪些？", "如何联系人工客服？"]
+            choices = data.get("choices", [{}])
+            raw_content = choices[0].get("message", {}).get("content", "")
+            if not raw_content.strip():
+                raw_content = choices[0].get("message", {}).get("reasoning_content", "")
+            content = raw_content.strip()
     except Exception:
         return ["常见问题有哪些？", "如何联系人工客服？"]
 
-    lines = [l.strip() for l in content.strip().split('\n') if l.strip()]
+    lines = [l.strip() for l in content.split('\n') if l.strip()]
     clean_lines = []
     for line in lines[:3]:
         cleaned = line.lstrip('0123456789.、) ').strip()
