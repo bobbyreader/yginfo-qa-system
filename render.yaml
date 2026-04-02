@@ -22,3 +22,9 @@ services:
       - key: OPENAI_BASE_URL
         sync: false
         fromGroup: OpenAI
+      - key: OPENAI_MODEL
+        sync: false
+        fromGroup: OpenAI
+      - key: DEBUG
+        sync: false
+        value: "true"

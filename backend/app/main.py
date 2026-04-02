@@ -36,6 +36,20 @@ app.include_router(channels.router)
 app.include_router(admin.router)
 
 
+@app.get("/debug/env")
+async def debug_env():
+    """调试端点：显示环境变量配置（不暴露敏感值）"""
+    settings = get_settings()
+    return {
+        "database_url": "***" if settings.database_url else "NOT SET",
+        "openai_api_key": "***" if settings.openai_api_key else "NOT SET",
+        "openai_base_url": settings.openai_base_url or "NOT SET",
+        "openai_model": settings.openai_model or "NOT SET",
+        "pinecone_api_key": "***" if settings.pinecone_api_key else "NOT SET",
+        "debug": settings.debug,
+    }
+
+
 @app.get("/health")
 async def health_check():
     """健康检查端点"""
