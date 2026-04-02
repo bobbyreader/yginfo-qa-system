@@ -43,6 +43,12 @@
     <script>
         const API = 'http://localhost:8000/api/admin';
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         async function loadDocuments() {
             const resp = await fetch(`${API}/documents`);
             const docs = await resp.json();
@@ -50,9 +56,9 @@
             const tbody = document.querySelector('#doc-table tbody');
             tbody.innerHTML = docs.map(d => `
                 <tr>
-                    <td>${d.filename}</td>
-                    <td>${d.file_type}</td>
-                    <td><span class="status ${d.status}">${d.status}</span></td>
+                    <td>${escapeHtml(d.filename)}</td>
+                    <td>${escapeHtml(d.file_type)}</td>
+                    <td><span class="status ${escapeHtml(d.status)}">${escapeHtml(d.status)}</span></td>
                     <td>${d.chunk_count || 0}</td>
                     <td>${new Date(d.created_at).toLocaleString()}</td>
                     <td>

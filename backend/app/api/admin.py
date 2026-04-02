@@ -53,7 +53,7 @@ async def delete_document(
     # 软删除
     from datetime import datetime
     doc.deleted_at = datetime.utcnow()
-    await db.flush()
+    await db.commit()
 
     return {"success": True}
 
@@ -84,6 +84,6 @@ async def reindex_document(
 
     doc.chunk_count = len(chunks)
     doc.status = "indexed"
-    await db.flush()
+    await db.commit()
 
     return {"id": doc.id, "chunk_count": len(chunks)}
