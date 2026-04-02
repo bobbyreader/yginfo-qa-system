@@ -18,10 +18,10 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # Database
+    # Database - PostgreSQL (use Supabase or similar for production)
     database_url: str = Field(
-        default=f"sqlite+aiosqlite:///{BACKEND_DIR / 'yg_knowledge.db'}",
-        description="数据库连接URL",
+        default="sqlite+aiosqlite:///./yg_knowledge.db",
+        description="数据库连接URL，支持postgresql+asyncpg://或sqlite+aiosqlite:///",
     )
 
     # Pinecone
