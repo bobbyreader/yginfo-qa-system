@@ -45,12 +45,12 @@ class IntentService:
                 raw_content = choices[0].get("message", {}).get("content", "")
                 if not raw_content.strip():
                     raw_content = choices[0].get("message", {}).get("reasoning_content", "")
-                # 从 reasoning_content 中解析答案（格式如 "...是 chitchat" 或 "...是 1"）
+                # 从 reasoning_content 中解析答案
                 reasoning = raw_content.lower()
-                if "chitchat" in reasoning or "1" in reasoning:
+                if "chitchat" in reasoning or "闲聊" in reasoning or "1" in reasoning:
                     return "chitchat"
-                elif "invalid" in reasoning or "2" in reasoning:
+                elif "invalid" in reasoning or "2" in reasoning or "无" in reasoning:
                     return "invalid"
         except Exception:
             return "knowledge_qa"
-        return "knowledge_qa"
+        return "knowledge_qa"  # 默认走知识库检索，更安全
