@@ -41,8 +41,12 @@ class IntentService:
                 data = resp.json()
                 if "error" in data:
                     return "knowledge_qa"
-                content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                intent = content.strip().lower()
+                choices = data.get("choices", [{}])
+                raw_content = choices[0].get("message", {}).get("content", "")
+                # 兼容 MiniMax reasoning 模型：content 为空时从 reasoning_content 取
+                if not raw_content.strip():
+                    raw_content = choices[0].get("message", {}).get("reasoning_content", "")
+                intent = raw_content.strip().lower()
         except Exception:
             return "knowledge_qa"
 
