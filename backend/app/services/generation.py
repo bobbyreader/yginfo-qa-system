@@ -26,6 +26,7 @@ class GenerationService:
         settings = get_settings()
         self.llm = ChatOpenAI(
             api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url,
             model=settings.openai_model,
             max_tokens=1000,
         )

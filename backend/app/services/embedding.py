@@ -1,11 +1,14 @@
 from langchain_openai import OpenAIEmbeddings
 from app.core.config import get_settings
 
+settings = get_settings()
+
 
 class EmbeddingService:
     def __init__(self):
         self.embeddings = OpenAIEmbeddings(
-            api_key=get_settings().openai_api_key,
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url,
             model="text-embedding-ada-002",
         )
 

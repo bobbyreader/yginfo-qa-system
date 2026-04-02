@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     # OpenAI
     openai_api_key: str = Field(default="", description="OpenAI API Key")
+    openai_base_url: str = Field(default="https://api.openai.com/v1", description="OpenAI API 中转地址")
     openai_model: str = Field(default="gpt-4o-mini", description="OpenAI模型")
 
     # App
