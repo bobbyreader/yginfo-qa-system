@@ -15,7 +15,7 @@ class Document(Base):
 
     status = Column(String(50), default="pending", index=True)  # pending, processing, indexed, failed
     chunk_count = Column(Integer, default=0)
-    metadata = Column(JSON, default={})
+    doc_metadata = Column(JSON, default={})
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

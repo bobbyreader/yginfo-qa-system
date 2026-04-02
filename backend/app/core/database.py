@@ -8,13 +8,19 @@ from .config import get_settings
 settings = get_settings()
 
 # 创建异步引擎
-async_engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-)
+engine_kwargs = {
+    "echo": settings.debug,
+    "pool_pre_ping": True,
+}
+
+# SQLite 不支持 pool_size 和 max_overflow
+if not settings.database_url.startswith("sqlite"):
+    engine_kwargs.update({
+        "pool_size": 10,
+        "max_overflow": 20,
+    })
+
+async_engine = create_async_engine(settings.database_url, **engine_kwargs)
 
 # 异步会话工厂
 AsyncSessionLocal = async_sessionmaker(

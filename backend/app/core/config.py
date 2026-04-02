@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = Field(
-        default="",
+        default="sqlite+aiosqlite:///./yg_knowledge.db",
         description="数据库连接URL",
     )
 

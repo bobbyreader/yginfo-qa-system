@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import get_settings
+from .api import chat, knowledge, channels, admin
 
 settings = get_settings()
 
@@ -18,6 +19,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 注册路由
+app.include_router(chat.router)
+app.include_router(knowledge.router)
+app.include_router(channels.router)
+app.include_router(admin.router)
 
 
 @app.get("/health")
