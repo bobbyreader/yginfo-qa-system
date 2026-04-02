@@ -30,11 +30,14 @@ async def upload_document(
         content = await file.read()
         f.write(content)
 
-    # 创建记录
+    # 创建记录 - 使用 Path().name 清理文件名，防止路径遍历攻击
+    filename = Path(file.filename).name
+    if len(filename) > 255:
+        filename = filename[:255]
     doc = Document(
         id=file_id,
         tenant_id=tenant_id,
-        filename=file.filename,
+        filename=filename,
         file_path=str(file_path),
         file_size=len(content),
         file_type=file_ext,
