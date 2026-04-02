@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import get_settings
+from .core.database import Base, async_engine
 from .api import chat, knowledge, channels, admin
 
 settings = get_settings()
@@ -10,6 +11,14 @@ app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
 )
+
+
+@app.on_event("startup")
+async def on_startup():
+    """启动时自动创建所有表"""
+    async with async_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
 
 # CORS中间件 - 允许所有来源
 app.add_middleware(
