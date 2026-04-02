@@ -100,7 +100,7 @@
     <script src="widget.js"></script>
     <script>
         window.YGWidget.init({
-            apiBase: 'http://localhost:8000',
+            apiBase: window.location.origin,
             tenantId: 'default',
             channel: 'webchat',
         });

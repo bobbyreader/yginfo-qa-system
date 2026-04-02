@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from .core.config import get_settings
 from .core.database import Base, async_engine
@@ -11,6 +13,9 @@ app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
 )
+
+# 获取 frontend 目录的绝对路径
+FRONTEND_DIR = Path(__file__).parent.parent.parent / "frontend"
 
 
 @app.on_event("startup")
@@ -28,6 +33,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 挂载静态文件
+if FRONTEND_DIR.exists():
+    app.mount("/admin", StaticFiles(directory=str(FRONTEND_DIR / "admin"), html=True), name="admin")
+    app.mount("/widget", StaticFiles(directory=str(FRONTEND_DIR / "widget"), html=True), name="widget")
 
 # 注册路由
 app.include_router(chat.router)

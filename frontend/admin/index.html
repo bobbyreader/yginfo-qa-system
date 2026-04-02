@@ -41,7 +41,7 @@
     </table>
 
     <script>
-        const API = 'http://localhost:8000/api/admin';
+        const API = window.location.protocol + '//' + window.location.host + '/api/admin';
 
         function escapeHtml(text) {
             const div = document.createElement('div');
