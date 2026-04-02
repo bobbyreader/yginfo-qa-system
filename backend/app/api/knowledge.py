@@ -47,3 +47,37 @@ async def upload_document(
     await db.flush()
 
     return {"id": doc.id, "filename": doc.filename, "status": doc.status}
+
+
+@router.post("/documents/{document_id}/index")
+async def index_document(
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.document_processor import DocumentProcessor
+    from app.services.vector_store import VectorStore
+
+    doc = await db.get(Document, document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    # 处理文档
+    processor = DocumentProcessor()
+    chunks_data = await processor.process(doc.file_path, doc.file_type)
+
+    # 生成chunk记录和向量
+    chunks = [
+        {"id": f"{doc.id}-{i}", "text": text, "document_id": doc.id}
+        for i, (text, _) in enumerate(chunks_data)
+    ]
+
+    # 写入向量库
+    vector_store = VectorStore()
+    await vector_store.upsert(chunks, doc.tenant_id)
+
+    # 更新状态
+    doc.status = "indexed"
+    doc.chunk_count = len(chunks)
+    await db.flush()
+
+    return {"id": doc.id, "chunk_count": len(chunks), "status": "indexed"}
