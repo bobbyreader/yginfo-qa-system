@@ -26,8 +26,14 @@ class IntentService:
     async def classify(self, question: str) -> str:
         """识别意图"""
         prompt = self.INTENT_PROMPT.format(question=question)
-        response = await self.llm.ainvoke([{"role": "user", "content": prompt}])
-        intent = response.content.strip().lower()
+        try:
+            response = await self.llm.ainvoke([{"role": "user", "content": prompt}])
+            # 兼容中转API返回的字符串或标准AIMessage对象
+            intent = response.content if hasattr(response, 'content') else str(response)
+            intent = intent.strip().lower()
+        except Exception as e:
+            # 中转API异常时默认走知识库检索
+            return "knowledge_qa"
 
         if "knowledge_qa" in intent:
             return "knowledge_qa"

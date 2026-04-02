@@ -114,11 +114,15 @@ async def _generate_recommendations(question: str, chunks: list[dict]) -> list[s
 直接输出问题列表，每行一条，不要编号。"""
 
     generation_service = GenerationService()
-    response = await generation_service.llm.ainvoke([
-        {"role": "user", "content": recommendation_prompt}
-    ])
+    try:
+        response = await generation_service.llm.ainvoke([
+            {"role": "user", "content": recommendation_prompt}
+        ])
+        content = response.content if hasattr(response, 'content') else str(response)
+    except Exception:
+        return ["常见问题有哪些？", "如何联系人工客服？"]
 
-    lines = [l.strip() for l in response.content.strip().split('\n') if l.strip()]
+    lines = [l.strip() for l in content.strip().split('\n') if l.strip()]
     clean_lines = []
     for line in lines[:3]:
         cleaned = line.lstrip('0123456789.、) ').strip()
