@@ -63,7 +63,7 @@
                 const recEl = document.createElement('div');
                 recEl.className = 'message assistant';
                 recEl.innerHTML = '<small>推荐问题：</small><br>' +
-                    data.recommendations.map(r => `<a href="javascript:void(0)" onclick="YGWidget.send('${r}')">${r}</a>`).join('<br>');
+                    data.recommendations.map(r => `<a href="javascript:void(0)" onclick="YGWidget.send('${escapeHtml(r)}')">${escapeHtml(r)}</a>`).join('<br>');
                 messagesEl.appendChild(recEl);
             }
         } catch (err) {
@@ -74,6 +74,12 @@
         }
     }
     window.YGWidget.send = sendMessage;
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
 
     function addMessage(role, text) {
         const el = document.createElement('div');
