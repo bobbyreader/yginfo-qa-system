@@ -13,7 +13,7 @@ class IntentService:
 - chitchat: 闲聊
 - invalid: 无效输入（乱码、广告等）
 
-只回答选项中的一个，不要解释。"""
+直接回答选项，例如：knowledge_qa"""
 
     def __init__(self):
         settings = get_settings()
@@ -23,7 +23,7 @@ class IntentService:
 
     async def classify(self, question: str) -> str:
         """识别意图"""
-        prompt = self.INTENT_PROMPT.format(question=question)
+        prompt = f"判断：{question}\n选项：0=知识库问答 1=闲聊 2=无效输入\n直接回答数字："
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(
@@ -35,7 +35,7 @@ class IntentService:
                     json={
                         "model": self.model,
                         "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": 50,
+                        "max_tokens": 100,
                     },
                 )
                 data = resp.json()
@@ -43,15 +43,14 @@ class IntentService:
                     return "knowledge_qa"
                 choices = data.get("choices", [{}])
                 raw_content = choices[0].get("message", {}).get("content", "")
-                # 兼容 MiniMax reasoning 模型：content 为空时从 reasoning_content 取
                 if not raw_content.strip():
                     raw_content = choices[0].get("message", {}).get("reasoning_content", "")
-                intent = raw_content.strip().lower()
+                # 从 reasoning_content 中解析答案（格式如 "...是 chitchat" 或 "...是 1"）
+                reasoning = raw_content.lower()
+                if "chitchat" in reasoning or "1" in reasoning:
+                    return "chitchat"
+                elif "invalid" in reasoning or "2" in reasoning:
+                    return "invalid"
         except Exception:
             return "knowledge_qa"
-
-        if "knowledge_qa" in intent:
-            return "knowledge_qa"
-        elif "chitchat" in intent:
-            return "chitchat"
-        return "invalid"
+        return "knowledge_qa"

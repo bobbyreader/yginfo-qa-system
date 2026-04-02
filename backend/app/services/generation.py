@@ -71,7 +71,6 @@ class GenerationService:
                     return f"抱歉，服务暂时不可用。错误: {data['error'].get('message', 'unknown')}"
                 choices = data.get("choices", [{}])
                 raw_content = choices[0].get("message", {}).get("content", "")
-                # 兼容 MiniMax reasoning 模型：content 为空时从 reasoning_content 取
                 if not raw_content.strip():
                     raw_content = choices[0].get("message", {}).get("reasoning_content", "")
                 return raw_content.strip() or "抱歉，未能获取回答"
