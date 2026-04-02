@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = Field(
-        default="postgresql+psycopg://postgres:postgres@localhost:5432/yg_knowledge_base",
+        default="",
         description="数据库连接URL",
     )
 
