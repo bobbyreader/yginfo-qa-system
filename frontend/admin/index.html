@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>YG知识库管理后台</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { color: #333; }
+        .toolbar { margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f5f5f5; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .status.pending { background: #fff3cd; }
+        .status.indexed { background: #d4edda; }
+        .status.failed { background: #f8d7da; }
+        .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-primary { background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <h1>📚 YG知识库管理后台</h1>
+
+    <div class="toolbar">
+        <button class="btn btn-primary" onclick="location.reload()">🔄 刷新</button>
+    </div>
+
+    <table id="doc-table">
+        <thead>
+            <tr>
+                <th>文件名</th>
+                <th>类型</th>
+                <th>状态</th>
+                <th>分段数</th>
+                <th>上传时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        const API = 'http://localhost:8000/api/admin';
+
+        async function loadDocuments() {
+            const resp = await fetch(`${API}/documents`);
+            const docs = await resp.json();
+
+            const tbody = document.querySelector('#doc-table tbody');
+            tbody.innerHTML = docs.map(d => `
+                <tr>
+                    <td>${d.filename}</td>
+                    <td>${d.file_type}</td>
+                    <td><span class="status ${d.status}">${d.status}</span></td>
+                    <td>${d.chunk_count || 0}</td>
+                    <td>${new Date(d.created_at).toLocaleString()}</td>
+                    <td>
+                        ${d.status === 'indexed' ? `<button class="btn btn-primary" onclick="reindex('${d.id}')">重建索引</button>` : ''}
+                        <button class="btn btn-danger" onclick="deleteDoc('${d.id}')">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function deleteDoc(id) {
+            if (!confirm('确定删除？')) return;
+            await fetch(`${API}/documents/${id}`, { method: 'DELETE' });
+            loadDocuments();
+        }
+
+        async function reindex(id) {
+            await fetch(`${API}/documents/${id}/reindex`, { method: 'POST' });
+            loadDocuments();
+        }
+
+        loadDocuments();
+    </script>
+</body>
+</html>
