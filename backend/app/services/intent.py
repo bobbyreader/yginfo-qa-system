@@ -33,6 +33,8 @@ class IntentService:
             intent = intent.strip().lower()
         except Exception as e:
             # 中转API异常时默认走知识库检索
+            import traceback
+            print(f"Intent classification failed: {type(e).__name__}: {e}\n{traceback.format_exc()}")
             return "knowledge_qa"
 
         if "knowledge_qa" in intent:

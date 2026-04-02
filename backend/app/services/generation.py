@@ -59,4 +59,6 @@ class GenerationService:
             # 兼容中转API返回的字符串或标准AIMessage对象
             return response.content if hasattr(response, 'content') else str(response)
         except Exception as e:
-            return "抱歉，服务暂时不可用，请稍后再试。"
+            import traceback
+            error_msg = f"LLM调用失败: {type(e).__name__}: {e}\n{traceback.format_exc()}"
+            return f"抱歉，服务暂时不可用。错误信息: {error_msg[:200]}"
