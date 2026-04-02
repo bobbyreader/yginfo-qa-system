@@ -21,11 +21,17 @@ class RetrievalService:
         top_k_bm25: int = 10,
     ) -> list[dict]:
         """混合检索，返回RRF融合后的top-3结果"""
-        vector_results = await self.vector_store.search(
-            query, tenant_id, top_k=top_k_vector
-        )
+        try:
+            vector_results = await self.vector_store.search(
+                query, tenant_id, top_k=top_k_vector
+            )
+        except Exception:
+            vector_results = []
 
-        bm25_results = await self._bm25_search(query, tenant_id, top_k=top_k_bm25)
+        try:
+            bm25_results = await self._bm25_search(query, tenant_id, top_k=top_k_bm25)
+        except Exception:
+            bm25_results = []
 
         fused = self._reciprocal_rank_fusion(vector_results, bm25_results)
 
