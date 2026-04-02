@@ -61,23 +61,27 @@ async def index_document(
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    # 处理文档
-    processor = DocumentProcessor()
-    chunks_data = await processor.process(doc.file_path, doc.file_type)
+    try:
+        # 处理文档
+        processor = DocumentProcessor()
+        chunks_data = await processor.process(doc.file_path, doc.file_type)
 
-    # 生成chunk记录和向量
-    chunks = [
-        {"id": f"{doc.id}-{i}", "text": text, "document_id": doc.id}
-        for i, (text, _) in enumerate(chunks_data)
-    ]
+        # 生成chunk记录和向量
+        chunks = [
+            {"id": f"{doc.id}-{i}", "text": text, "document_id": doc.id}
+            for i, (text, _) in enumerate(chunks_data)
+        ]
 
-    # 写入向量库
-    vector_store = VectorStore()
-    await vector_store.upsert(chunks, doc.tenant_id)
+        # 写入向量库
+        vector_store = VectorStore()
+        await vector_store.upsert(chunks, doc.tenant_id)
 
-    # 更新状态
-    doc.status = "indexed"
-    doc.chunk_count = len(chunks)
-    await db.flush()
+        # 更新状态
+        doc.status = "indexed"
+        doc.chunk_count = len(chunks)
+        await db.commit()
 
-    return {"id": doc.id, "chunk_count": len(chunks), "status": "indexed"}
+        return {"id": doc.id, "chunk_count": len(chunks), "status": "indexed"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Indexing failed: {str(e)}")

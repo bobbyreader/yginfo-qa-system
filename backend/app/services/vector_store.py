@@ -1,3 +1,4 @@
+import asyncio
 from pinecone import Pinecone
 from app.core.config import get_settings
 from app.services.embedding import EmbeddingService
@@ -28,14 +29,15 @@ class VectorStore:
                 }
             })
 
-        index.upsert(vectors=vectors, namespace=tenant_id)
+        await asyncio.to_thread(index.upsert, vectors=vectors, namespace=tenant_id)
 
     async def search(self, query: str, tenant_id: str, top_k: int = 5) -> list[dict]:
         """向量相似度搜索"""
         query_embedding = await self.embedding_service.embed_query(query)
         index = self.pc.Index(self.index_name)
 
-        results = index.query(
+        results = await asyncio.to_thread(
+            index.query,
             vector=query_embedding,
             top_k=top_k,
             namespace=tenant_id,
@@ -50,4 +52,6 @@ class VectorStore:
     async def delete_by_document(self, document_id: str, tenant_id: str):
         """删除文档的所有向量"""
         index = self.pc.Index(self.index_name)
-        index.delete(filter={"document_id": {"$eq": document_id}}, namespace=tenant_id)
+        await asyncio.to_thread(
+            index.delete, filter={"document_id": {"$eq": document_id}}, namespace=tenant_id
+        )
